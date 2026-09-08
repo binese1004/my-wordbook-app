@@ -73,7 +73,11 @@ if not st.session_state.raw_word_list:
                     else:
                         st.error("글자를 인식하지 못했습니다. 단어가 선명하게 찍히도록 다시 시도해 주세요.")
                 except Exception as e:
-                    st.error(f"오류 상세 내용: {str(e)}")
+                    err_msg = str(e)
+                    if "429" in err_msg or "Quota exceeded" in err_msg:
+                        st.warning("⏳ 무료 사용량 제한에 도달했습니다. 약 30초~1분 후 다시 시도해 주세요!")
+                    else:
+                        st.error(f"오류 상세 내용: {err_msg}")
 
 # 3. 재생 방식 선택 화면
 elif st.session_state.raw_word_list and not st.session_state.mode_selected:
