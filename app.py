@@ -1,20 +1,20 @@
 import streamlit as st
 import random
-from openai import OpenAI
+from google import genai
 from gtts import gTTS
-import base64
 import io
 from PIL import Image, ImageOps
 
 st.set_page_config(page_title="단어 암기 퀴즈", layout="centered")
 
-st.title("🔤 단어 암기 퀴즈")
+st.title("🔤 단어 암기 퀴즈 (무료)")
 
-# API 키 가져오기 (Secrets 또는 화면 입력)
-api_key = st.secrets.get("OPENAI_API_KEY", None)
+# 1. API 키 확인 (Streamlit Secrets 또는 화면 입력)
+gemini_key = st.secrets.get("GEMINI_API_KEY", None)
 
-if not api_key:
-    api_key = st.text_input("🔑 OpenAI API Key를 입력해주세요", type="password")
+if not gemini_key or "여기에" in gemini_key:
+    gemini_key = st.text_input("🔑 Google Gemini API Key를 입력해주세요", type="password")
+    st.info("💡 API Key가 없으시면 https://aistudio.google.com/app/apikey 에서 무료로 발급받으실 수 있습니다.")
 
 if "word_list" not in st.session_state:
     st.session_state.word_list = []
@@ -22,16 +22,14 @@ if "current_index" not in st.session_state:
     st.session_state.current_index = 0
 
 def process_image(file_data):
+    # 이미지 회전 보정 및 RGB 변환
     image = Image.open(file_data)
     image = ImageOps.exif_transpose(image)
     if image.mode != 'RGB':
         image = image.convert('RGB')
-        
-    buffered = io.BytesIO()
-    image.save(buffered, format="JPEG", quality=90)
-    return base64.b64encode(buffered.getvalue()).decode('ascii')
+    return image
 
-# 1. 단어 목록이 없을 때 업로드 화면
+# 2. 단어 목록이 없을 때 업로드 화면
 if not st.session_state.word_list:
     st.write("### 사진을 보내주세요")
     
@@ -41,35 +39,29 @@ if not st.session_state.word_list:
     target_photo = camera_photo or file_photo
 
     if target_photo:
-        if not api_key:
-            st.error("❌ API Key가 설정되지 않았습니다. 상단 입력창에 API Key를 넣거나 Streamlit Secrets를 확인해 주세요.")
+        if not gemini_key:
+            st.error("❌ Gemini API Key가 입력되지 않았습니다. 상단에 키를 입력해주세요.")
         else:
-            with st.spinner("⚡ 사진을 분석하고 있습니다..."):
+            with st.spinner("⚡ 무료 AI가 사진속 단어를 읽고 있습니다..."):
                 try:
-                    base64_image = process_image(target_photo)
-                    client = OpenAI(api_key=api_key)
+                    img = process_image(target_photo)
+                    
+                    # Gemini Client 생성
+                    client = genai.Client(api_key=gemini_key)
 
                     prompt_text = (
                         "이 사진 속 영어 단어와 한글 뜻을 추출해줘. "
-                        "'영어단어: 한글뜻' 형태로 한 줄에 하나씩만 작성해줘. "
-                        "다른 설명이나 안내문은 절대로 포함하지 마."
+                        "반드시 '영어단어: 한글뜻' 형태로 한 줄에 하나씩만 작성해줘. "
+                        "예시: practice: 연습하다 "
+                        "다른 설명, 인사말, 기호는 절대로 포함하지 마."
                     )
                     
-                    response = client.chat.completions.create(
-                        model="gpt-4o-mini",
-                        messages=[
-                            {
-                                "role": "user",
-                                "content": [
-                                    {"type": "text", "text": prompt_text},
-                                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}", "detail": "high"}}
-                                ]
-                            }
-                        ],
-                        max_tokens=1000
+                    response = client.models.generate_content(
+                        model='gemini-2.5-flash',
+                        contents=[img, prompt_text]
                     )
                     
-                    raw_text = response.choices[0].message.content
+                    raw_text = response.text.strip()
                     lines = [line.strip().replace("`", "") for line in raw_text.split('\n') if line.strip() and ":" in line]
 
                     if lines:
@@ -78,12 +70,11 @@ if not st.session_state.word_list:
                         st.session_state.current_index = 0
                         st.rerun()
                     else:
-                        st.error("글자를 인식하지 못했습니다. 사진을 다시 찍어주세요.")
+                        st.error("글자를 인식하지 못했습니다. 단어가 선명하게 찍히도록 다시 시도해 주세요.")
                 except Exception as e:
-                    # 에러 상세 내용을 영문으로 안전하게 출력
-                    st.error(f"OpenAI 오류 상세 내용: {repr(e)}")
+                    st.error("오류가 발생했습니다. 입력하신 Gemini API Key가 올바른지 확인해 주세요.")
 
-# 2. 단어 음성 학습 화면
+# 3. 단어 음성 학습 화면
 if st.session_state.word_list:
     total = len(st.session_state.word_list)
     idx = st.session_state.current_index
@@ -94,6 +85,7 @@ if st.session_state.word_list:
     current_pair = st.session_state.word_list[idx]
     eng_word = current_pair.split(':')[0].strip() if ':' in current_pair else current_pair
     
+    # 음성 생성
     tts = gTTS(text=eng_word, lang='en', slow=True)
     tts.save("temp.mp3")
     
