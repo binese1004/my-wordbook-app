@@ -5,26 +5,32 @@ from gtts import gTTS
 import io
 from PIL import Image, ImageOps
 
-st.set_page_config(page_title="영어 단어 암기", layout="centered")
+st.set_page_config(page_title="단어 암기 퀴즈", layout="centered")
 
-st.title("🔤 영어 단어 암기 (시언)")
+st.title("🔤 단어 암기 퀴즈 (최시언)")
 
-# 1. Secrets에서 API Key 불러오기
+# 1. API Key 불러오기 및 초기화
 gemini_key = st.secrets.get("GEMINI_API_KEY", None)
 
 if not gemini_key:
     gemini_key = st.text_input("🔑 Google Gemini API Key를 입력해주세요", type="password")
+
+if gemini_key:
+    genai.configure(api_key=gemini_key.strip())
 
 if "word_list" not in st.session_state:
     st.session_state.word_list = []
 if "current_index" not in st.session_state:
     st.session_state.current_index = 0
 
+@st.cache_data
 def process_image(file_data):
     image = Image.open(file_data)
     image = ImageOps.exif_transpose(image)
     if image.mode != 'RGB':
         image = image.convert('RGB')
+    # AI 인식 속도 향상을 위한 이미지 리사이징 (최대 1024px)
+    image.thumbnail((1024, 1024))
     return image
 
 # 2. 단어 목록이 없을 때 업로드 화면
@@ -40,14 +46,9 @@ if not st.session_state.word_list:
         if not gemini_key:
             st.error("❌ Gemini API Key가 입력되지 않았습니다.")
         else:
-            with st.spinner("⚡ 무료 AI가 사진속 단어를 읽고 있습니다..."):
+            with st.spinner("⚡ 초고속 AI가 단어를 읽는 중입니다..."):
                 try:
                     img = process_image(target_photo)
-                    
-                    # Gemini API 설정
-                    genai.configure(api_key=gemini_key.strip())
-                    
-                    # 호환 가능한 모델명으로 설정
                     model = genai.GenerativeModel('gemini-3.6-flash')
 
                     prompt_text = (
@@ -58,7 +59,6 @@ if not st.session_state.word_list:
                     )
                     
                     response = model.generate_content([prompt_text, img])
-                    
                     raw_text = response.text.strip()
                     lines = [line.strip().replace("`", "") for line in raw_text.split('\n') if line.strip() and ":" in line]
 
@@ -83,13 +83,12 @@ if st.session_state.word_list:
     current_pair = st.session_state.word_list[idx]
     eng_word = current_pair.split(':')[0].strip() if ':' in current_pair else current_pair
     
-    # 음성 파일 생성
+    # 메모리 버퍼를 통한 즉시 음성 재생 (디스크 I/O 제거로 속도 향상)
+    fp = io.BytesIO()
     tts = gTTS(text=eng_word, lang='en', slow=True)
-    tts.save("temp.mp3")
-    
-    with open("temp.mp3", "rb") as f:
-        audio_bytes = f.read()
-    st.audio(audio_bytes, format="audio/mp3", autoplay=True)
+    tts.write_to_fp(fp)
+    fp.seek(0)
+    st.audio(fp, format="audio/mp3", autoplay=True)
     
     st.write("")
     if st.checkbox("👁️ 정답(스펠링 & 뜻) 보기"):
