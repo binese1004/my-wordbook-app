@@ -5,9 +5,9 @@ from gtts import gTTS
 import io
 from PIL import Image, ImageOps
 
-st.set_page_config(page_title="단어 암기 퀴즈", layout="centered")
+st.set_page_config(page_title="최시언 영어 암기", layout="centered")
 
-st.title("🔤 단어 암기 퀴즈 (무료)")
+st.title("🔤 최시언 영어 암기 (♡)")
 
 # 1. API Key 불러오기 및 초기화
 gemini_key = st.secrets.get("GEMINI_API_KEY", None)
@@ -78,7 +78,7 @@ if not st.session_state.raw_word_list:
                 except Exception as e:
                     err_msg = str(e)
                     if "429" in err_msg or "Quota exceeded" in err_msg:
-                        st.warning("⏳ 무료 사용량 제한에 도달했습니다. 약 30초~1분 후 다시 시도해 주세요!")
+                        st.warning("⏳ 무료 사용량 제한에 도달했습니다. 약 30초~1시간 후 다시 시도해 주세요!")
                     else:
                         st.error(f"오류 상세 내용: {err_msg}")
 
