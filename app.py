@@ -3,6 +3,8 @@ import random
 from openai import OpenAI
 from gtts import gTTS
 import base64
+import io
+from PIL import Image, ImageOps
 
 st.set_page_config(page_title="단어 암기 퀴즈", layout="centered")
 
@@ -16,38 +18,49 @@ if "word_list" not in st.session_state:
 if "current_index" not in st.session_state:
     st.session_state.current_index = 0
 
+# 이미지 회전 보정 및 Base64 변환 함수
+def process_image(file_data):
+    # 이미지 열기
+    image = Image.open(file_data)
+    
+    # EXIF 방향 정보에 맞춰 이미지 자동 회전 (세로 사진 누움 방지)
+    image = ImageOps.exif_transpose(image)
+    
+    # RGB 변환 (PNG/RGBA 대응)
+    if image.mode != 'RGB':
+        image = image.convert('RGB')
+        
+    # 바이트 스트림으로 저장 후 Base64 인코딩 (ASCII 오류 방지)
+    buffered = io.BytesIO()
+    image.save(buffered, format="JPEG", quality=95)
+    img_bytes = buffered.getvalue()
+    return base64.b64encode(img_bytes).decode('utf-8')
+
 # 1. 단어 목록이 없을 때만 업로드 화면 표시
 if not st.session_state.word_list:
-    st.write("### 사진을 올려주세요")
+    st.write("### 사진을 보내주세요")
     
-    col1, col2 = st.columns(2)
+    camera_photo = st.file_uploader(
+        "📸 카메라로 바로 찍기", 
+        type=["jpg", "png", "jpeg"],
+        key="cam_input"
+    )
     
-    # [📸 카메라] - 모바일 후방 카메라(environment) 직접 호출
-    with col1:
-        camera_photo = st.file_uploader(
-            "📸 카메라로 바로 찍기", 
-            type=["jpg", "png", "jpeg"],
-            key="cam_input"
-        )
-        
-    # [📁 파일/앨범]
-    with col2:
-        file_photo = st.file_uploader(
-            "📁 앨범에서 선택하기", 
-            type=["jpg", "png", "jpeg"],
-            key="file_input"
-        )
+    file_photo = st.file_uploader(
+        "📁 앨범에서 선택하기", 
+        type=["jpg", "png", "jpeg"],
+        key="file_input"
+    )
 
     target_photo = camera_photo or file_photo
 
-    # 사진이 들어오면 ChatGPT처럼 즉시 처리 시작
+    # 사진이 들어오면 자동으로 처리 시작
     if target_photo and api_key:
-        client = OpenAI(api_key=api_key)
-        bytes_data = target_photo.getvalue()
-        base64_image = base64.b64encode(bytes_data).decode('utf-8')
-
-        with st.spinner("⚡ ChatGPT가 단어를 읽고 있습니다..."):
+        with st.spinner("⚡ 사진 방향을 맞추고 단어를 읽고 있습니다..."):
             try:
+                base64_image = process_image(target_photo)
+                client = OpenAI(api_key=api_key)
+
                 response = client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[
@@ -85,7 +98,7 @@ if not st.session_state.word_list:
                 else:
                     st.error("글자를 인식하지 못했습니다. 단어장 사진을 다시 찍어주세요.")
             except Exception as e:
-                st.error(f"오류가 발생했습니다: {e}")
+                st.error(f"오류가 발생했습니다: {str(e)}")
 
 # 2. 단어 음성 학습 화면
 if st.session_state.word_list:
@@ -98,7 +111,7 @@ if st.session_state.word_list:
     current_pair = st.session_state.word_list[idx]
     eng_word = current_pair.split(':')[0].strip() if ':' in current_pair else current_pair
     
-    # 원어민 음성 재생 (자동 재생)
+    # 원어민 음성 생성 및 자동 재생
     tts = gTTS(text=eng_word, lang='en', slow=True)
     tts.save("temp.mp3")
     
@@ -108,7 +121,6 @@ if st.session_state.word_list:
     
     st.write("")
     
-    # 정답 확인 체크박스
     if st.checkbox("👁️ 정답(스펠링 & 뜻) 보기"):
         st.success(f"### {current_pair}")
         
