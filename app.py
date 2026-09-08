@@ -9,7 +9,7 @@ st.set_page_config(page_title="아이 영어 단어장", layout="centered")
 
 st.title("🔤 단어 암기 퀴즈")
 
-# Secrets에서 API 키 자동 가져오기
+# Secrets에서 API 키 가져오기
 api_key = st.secrets.get("OPENAI_API_KEY") or st.sidebar.text_input("OpenAI API Key를 입력하세요", type="password")
 
 if "word_list" not in st.session_state:
@@ -17,8 +17,8 @@ if "word_list" not in st.session_state:
 if "current_index" not in st.session_state:
     st.session_state.current_index = 0
 
-# 단어장 사진 입력 (스마트폰 카메라/앨범 통합)
-uploaded_file = st.file_uploader("📸 단어장 사진 찍기 / 파일 선택", type=["jpg", "png", "jpeg"])
+# 단어장 사진 촬영/업로드
+uploaded_file = st.file_uploader("📸 단어장 사진 찍기 또는 갤러리 선택", type=["jpg", "png", "jpeg"])
 
 # 단어 추출 진행
 if uploaded_file and api_key and not st.session_state.word_list:
