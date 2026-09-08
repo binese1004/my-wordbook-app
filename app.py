@@ -7,7 +7,7 @@ from PIL import Image, ImageOps
 
 st.set_page_config(page_title="최시언 영어 암기", layout="centered")
 
-st.markdown("<h2 style='font-size: 25px;'>🔤 최시언 영어 암기 (♡)</h2>", unsafe_allow_html=True)
+st.markdown("<h2 style='font-size: 26px;'>🔤 최시언 영어 암기 (♡)</h2>", unsafe_allow_html=True)
 
 # 1. API Key 불러오기 및 초기화
 gemini_key = st.secrets.get("GEMINI_API_KEY", None)
