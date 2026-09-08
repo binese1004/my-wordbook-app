@@ -27,8 +27,6 @@ if "current_index" not in st.session_state:
     st.session_state.current_index = 0
 if "mode_selected" not in st.session_state:
     st.session_state.mode_selected = False
-if "upload_type" not in st.session_state:
-    st.session_state.upload_type = None
 
 @st.cache_data
 def process_image(file_data):
@@ -39,29 +37,17 @@ def process_image(file_data):
     image.thumbnail((1024, 1024))
     return image
 
-# 2. 단어 추출 단계 (간결한 입력 버튼 UI)
+# 2. 단어 추출 단계 (카메라/앨범 통합)
 if not st.session_state.raw_word_list:
-    st.write("### 사진을 선택해 주세요")
+    st.write("### 사진을 보내주세요")
     
-    col_cam, col_file = st.columns(2)
-    
-    with col_cam:
-        if st.button("📸 카메라로 촬영", use_container_width=True):
-            st.session_state.upload_type = "camera"
-            st.rerun()
-            
-    with col_file:
-        if st.button("📁 앨범에서 선택", use_container_width=True):
-            st.session_state.upload_type = "file"
-            st.rerun()
-
-    target_photo = None
-
-    # 후면 카메라 우선 업로드 지원
-    if st.session_state.upload_type == "camera":
-        target_photo = st.file_uploader("📸 후면 카메라로 찍기", type=["jpg", "png", "jpeg"], accept_multiple_files=False, key="back_camera")
-    elif st.session_state.upload_type == "file":
-        target_photo = st.file_uploader("📁 앨범에서 선택", type=["jpg", "png", "jpeg"], accept_multiple_files=False, key="album_file")
+    # 통합 업로더 (모바일에서 선택 시 후면 카메라 또는 앨범 선택 창 호출)
+    target_photo = st.file_uploader(
+        "📸 카메라로 촬영 또는 📁 앨범에서 선택", 
+        type=["jpg", "png", "jpeg"], 
+        accept_multiple_files=False,
+        label_visibility="visible"
+    )
 
     if target_photo:
         if not gemini_key:
@@ -103,7 +89,7 @@ elif st.session_state.raw_word_list and not st.session_state.mode_selected:
     st.subheader(f"🎯 총 {total_count}개의 단어를 찾았습니다!")
     st.write("학습하실 방식을 선택해 주세요.")
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
 
     # 방식 1: 순서대로
     with col1:
@@ -191,5 +177,4 @@ elif st.session_state.mode_selected:
             st.session_state.word_list = []
             st.session_state.current_index = 0
             st.session_state.mode_selected = False
-            st.session_state.upload_type = None
             st.rerun()
