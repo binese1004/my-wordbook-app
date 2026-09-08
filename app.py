@@ -17,8 +17,8 @@ if "current_index" not in st.session_state:
     st.session_state.current_index = 0
 
 st.write("#### 📸 단어장 사진 준비하기")
+st.info("💡 선명한 인식을 위해 **스마트폰 기본 카메라로 사진을 먼저 찍은 뒤 '앨범에서 사진 선택하기'**로 업로드하시는 것을 추천합니다.")
 
-# camera_input을 사용하여 후면 카메라 촬영 지원
 captured_file = st.camera_input("카메라로 단어장 찍기")
 uploaded_file = st.file_uploader("또는 앨범에서 사진 선택하기", type=["jpg", "png", "jpeg"])
 
@@ -32,7 +32,7 @@ if target_file and api_key and not st.session_state.word_list:
         bytes_data = target_file.getvalue()
         base64_image = base64.b64encode(bytes_data).decode('utf-8')
         
-        with st.spinner("단어를 분석하고 있어요..."):
+        with st.spinner("단어를 분석하고 있어요... (시간이 조금 걸릴 수 있습니다)"):
             try:
                 response = client.chat.completions.create(
                     model="gpt-4o-mini",
@@ -40,22 +40,46 @@ if target_file and api_key and not st.session_state.word_list:
                         {
                             "role": "user",
                             "content": [
-                                {"type": "text", "text": "이 이미지에 있는 영어 단어들과 그 뜻을 추출해서 다른 설명 없이 '단어: 뜻' 형식으로 한 줄씩만 출력해줘."},
-                                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
+                                {
+                                    "type": "text", 
+                                    "text": (
+                                        "사진 속에 있는 영어 단어와 그에 해당하는 한글 뜻을 찾아주세요. "
+                                        "손글씨나 흐릿한 글자도 맥락에 맞게 유추해서 읽어주세요. "
+                                        "출력 형식은 오직 '영어단어: 한글뜻' 형태로만 한 줄에 하나씩 작성해주세요. "
+                                        "다른 인삿말, 설명, 마크다운(```)은 절대로 포함하지 마세요."
+                                    )
+                                },
+                                {
+                                    "type": "image_url", 
+                                    "image_url": {
+                                        "url": f"data:image/jpeg;base64,{base64_image}",
+                                        "detail": "high"  # 선명한 인식을 위해 high 고해상도 설정
+                                    }
+                                }
                             ]
                         }
-                    ]
+                    ],
+                    max_tokens=1000
                 )
-                raw_text = response.choices[0].message.content
-                lines = [line.strip() for line in raw_text.split('\n') if line.strip()]
+                raw_text = response.choices[0].message.content.strip()
                 
-                # 순서 무작위 섞기
-                random.shuffle(lines)
-                st.session_state.word_list = lines
-                st.session_state.current_index = 0
-                st.rerun()
+                # 마크다운이나 불필요한 공백 제거
+                lines = [line.strip().replace("`", "") for line in raw_text.split('\n') if line.strip() and ":" in line]
+                
+                if not lines:
+                    # 콜론(:)이 없는 경우 처리
+                    lines = [line.strip() for line in raw_text.split('\n') if line.strip()]
+
+                if lines:
+                    random.shuffle(lines)
+                    st.session_state.word_list = lines
+                    st.session_state.current_index = 0
+                    st.rerun()
+                else:
+                    st.warning("사진에서 단어를 찾지 못했습니다. 글자가 더 선명하게 보이도록 다시 찍어주세요.")
+                    
             except Exception as e:
-                st.error("사진을 읽는 중 문제가 발생했습니다. 다시 시도해 주세요.")
+                st.error(f"오류가 발생했습니다: {e}")
 
 # 단어 테스트 진행
 if st.session_state.word_list:
