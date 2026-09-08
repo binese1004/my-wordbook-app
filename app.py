@@ -5,9 +5,9 @@ from gtts import gTTS
 import io
 from PIL import Image, ImageOps
 
-st.set_page_config(page_title="단어 암기 퀴즈", layout="centered")
+st.set_page_config(page_title="영어 단어 암기", layout="centered")
 
-st.title("🔤 단어 암기 퀴즈 (무료)")
+st.title("🔤 영어 단어 암기 (시언)")
 
 # 1. Secrets에서 API Key 불러오기
 gemini_key = st.secrets.get("GEMINI_API_KEY", None)
