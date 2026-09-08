@@ -39,7 +39,7 @@ def process_image(file_data):
 
 # 2. 단어 추출 단계 (카메라/앨범 통합)
 if not st.session_state.raw_word_list:
-    st.write("### 사진을 보내주세요")
+    st.markdown("<p style='font-size: 20px; font-weight: bold;'>사진을 보내주세요</p>", unsafe_allow_html=True)
     
     # 통합 업로더 (모바일에서 선택 시 후면 카메라 또는 앨범 선택 창 호출)
     target_photo = st.file_uploader(
