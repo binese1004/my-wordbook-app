@@ -27,6 +27,8 @@ if "current_index" not in st.session_state:
     st.session_state.current_index = 0
 if "mode_selected" not in st.session_state:
     st.session_state.mode_selected = False
+if "upload_type" not in st.session_state:
+    st.session_state.upload_type = None
 
 @st.cache_data
 def process_image(file_data):
@@ -37,14 +39,31 @@ def process_image(file_data):
     image.thumbnail((1024, 1024))
     return image
 
-# 2. 단어 추출 단계 (사진 업로드)
+# 2. 단어 추출 단계 (간결한 입력 버튼 UI)
 if not st.session_state.raw_word_list:
-    st.write("### 사진을 보내주세요")
+    st.write("### 사진을 선택해 주세요")
     
-    camera_photo = st.file_uploader("📸 카메라로 바로 찍기", type=["jpg", "png", "jpeg"], key="cam_input")
-    file_photo = st.file_uploader("📁 앨범에서 선택하기", type=["jpg", "png", "jpeg"], key="file_input")
+    # 간결한 2개 버튼 배치
+    col_cam, col_file = st.columns(2)
+    
+    with col_cam:
+        if st.button("📸 카메라로 촬영", use_container_width=True):
+            st.session_state.upload_type = "camera"
+            st.rerun()
+            
+    with col_file:
+        if st.button("📁 앨범에서 선택", use_container_width=True):
+            st.session_state.upload_type = "file"
+            st.rerun()
 
-    target_photo = camera_photo or file_photo
+    target_photo = None
+
+    # 버튼 클릭에 따른 입력 창 표시
+    if st.session_state.upload_type == "camera":
+        st.write("👇 아래 촬영 버튼을 눌러 사진을 찍으세요")
+        target_photo = st.camera_input("카메라 촬영", label_visibility="collapsed")
+    elif st.session_state.upload_type == "file":
+        target_photo = st.file_uploader("앨범에서 선택", type=["jpg", "png", "jpeg"], label_visibility="collapsed")
 
     if target_photo:
         if not gemini_key:
@@ -121,7 +140,6 @@ elif st.session_state.raw_word_list and not st.session_state.mode_selected:
         if start_num > end_num:
             st.error("시작 번호가 끝 번호보다 클 수 없습니다.")
         else:
-            # 선택한 구간 추출 (1-based index를 0-based로 전환)
             sub_list = list(st.session_state.raw_word_list[start_num - 1 : end_num])
             random.shuffle(sub_list)
             st.session_state.word_list = sub_list
@@ -175,4 +193,5 @@ elif st.session_state.mode_selected:
             st.session_state.word_list = []
             st.session_state.current_index = 0
             st.session_state.mode_selected = False
+            st.session_state.upload_type = None
             st.rerun()
