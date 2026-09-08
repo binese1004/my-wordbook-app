@@ -1,6 +1,6 @@
 import streamlit as st
 import random
-from google import genai
+import google.generativeai as genai
 from gtts import gTTS
 import io
 from PIL import Image, ImageOps
@@ -9,7 +9,7 @@ st.set_page_config(page_title="단어 암기 퀴즈", layout="centered")
 
 st.title("🔤 단어 암기 퀴즈 (무료)")
 
-# 1. API 키 확인 (Streamlit Secrets 또는 화면 입력)
+# 1. Secrets에서 API Key 불러오기
 gemini_key = st.secrets.get("GEMINI_API_KEY", None)
 
 if not gemini_key or "여기에" in gemini_key:
@@ -22,7 +22,6 @@ if "current_index" not in st.session_state:
     st.session_state.current_index = 0
 
 def process_image(file_data):
-    # 이미지 회전 보정 및 RGB 변환
     image = Image.open(file_data)
     image = ImageOps.exif_transpose(image)
     if image.mode != 'RGB':
@@ -40,14 +39,15 @@ if not st.session_state.word_list:
 
     if target_photo:
         if not gemini_key:
-            st.error("❌ Gemini API Key가 입력되지 않았습니다. 상단에 키를 입력해주세요.")
+            st.error("❌ Gemini API Key가 입력되지 않았습니다. Secrets 설정이나 상단 입력창을 확인해 주세요.")
         else:
             with st.spinner("⚡ 무료 AI가 사진속 단어를 읽고 있습니다..."):
                 try:
                     img = process_image(target_photo)
                     
-                    # Gemini Client 생성
-                    client = genai.Client(api_key=gemini_key)
+                    # Gemini API 설정
+                    genai.configure(api_key=gemini_key.strip())
+                    model = genai.GenerativeModel('gemini-1.5-flash')
 
                     prompt_text = (
                         "이 사진 속 영어 단어와 한글 뜻을 추출해줘. "
@@ -56,10 +56,7 @@ if not st.session_state.word_list:
                         "다른 설명, 인사말, 기호는 절대로 포함하지 마."
                     )
                     
-                    response = client.models.generate_content(
-                        model='gemini-2.5-flash',
-                        contents=[img, prompt_text]
-                    )
+                    response = model.generate_content([prompt_text, img])
                     
                     raw_text = response.text.strip()
                     lines = [line.strip().replace("`", "") for line in raw_text.split('\n') if line.strip() and ":" in line]
@@ -72,7 +69,7 @@ if not st.session_state.word_list:
                     else:
                         st.error("글자를 인식하지 못했습니다. 단어가 선명하게 찍히도록 다시 시도해 주세요.")
                 except Exception as e:
-                    st.error("오류가 발생했습니다. 입력하신 Gemini API Key가 올바른지 확인해 주세요.")
+                    st.error(f"오류 상세 내용: {str(e)}")
 
 # 3. 단어 음성 학습 화면
 if st.session_state.word_list:
@@ -85,7 +82,7 @@ if st.session_state.word_list:
     current_pair = st.session_state.word_list[idx]
     eng_word = current_pair.split(':')[0].strip() if ':' in current_pair else current_pair
     
-    # 음성 생성
+    # 음성 파일 생성
     tts = gTTS(text=eng_word, lang='en', slow=True)
     tts.save("temp.mp3")
     
