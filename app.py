@@ -7,7 +7,7 @@ from PIL import Image, ImageOps
 
 st.set_page_config(page_title="단어 암기 퀴즈", layout="centered")
 
-st.title("🔤 단어 암기 퀴즈 (최시언)")
+st.title("🔤 단어 암기 퀴즈 (무료)")
 
 # 1. API Key 불러오기 및 초기화
 gemini_key = st.secrets.get("GEMINI_API_KEY", None)
@@ -18,10 +18,15 @@ if not gemini_key:
 if gemini_key:
     genai.configure(api_key=gemini_key.strip())
 
+# 세션 상태 변수 초기화
+if "raw_word_list" not in st.session_state:
+    st.session_state.raw_word_list = []
 if "word_list" not in st.session_state:
     st.session_state.word_list = []
 if "current_index" not in st.session_state:
     st.session_state.current_index = 0
+if "mode_selected" not in st.session_state:
+    st.session_state.mode_selected = False
 
 @st.cache_data
 def process_image(file_data):
@@ -29,12 +34,11 @@ def process_image(file_data):
     image = ImageOps.exif_transpose(image)
     if image.mode != 'RGB':
         image = image.convert('RGB')
-    # AI 인식 속도 향상을 위한 이미지 리사이징 (최대 1024px)
     image.thumbnail((1024, 1024))
     return image
 
-# 2. 단어 목록이 없을 때 업로드 화면
-if not st.session_state.word_list:
+# 2. 단어 추출 단계 (사진 업로드)
+if not st.session_state.raw_word_list:
     st.write("### 사진을 보내주세요")
     
     camera_photo = st.file_uploader("📸 카메라로 바로 찍기", type=["jpg", "png", "jpeg"], key="cam_input")
@@ -63,17 +67,66 @@ if not st.session_state.word_list:
                     lines = [line.strip().replace("`", "") for line in raw_text.split('\n') if line.strip() and ":" in line]
 
                     if lines:
-                        random.shuffle(lines)
-                        st.session_state.word_list = lines
-                        st.session_state.current_index = 0
+                        st.session_state.raw_word_list = lines
+                        st.session_state.mode_selected = False
                         st.rerun()
                     else:
                         st.error("글자를 인식하지 못했습니다. 단어가 선명하게 찍히도록 다시 시도해 주세요.")
                 except Exception as e:
                     st.error(f"오류 상세 내용: {str(e)}")
 
-# 3. 단어 음성 학습 화면
-if st.session_state.word_list:
+# 3. 재생 방식 선택 화면
+elif st.session_state.raw_word_list and not st.session_state.mode_selected:
+    total_count = len(st.session_state.raw_word_list)
+    st.markdown("---")
+    st.subheader(f"🎯 총 {total_count}개의 단어를 찾았습니다!")
+    st.write("학습하실 방식을 선택해 주세요.")
+
+    col1, col2, col3 = st.columns(3)
+
+    # 방식 1: 순서대로
+    with col1:
+        if st.button("1️⃣ 순서대로", use_container_width=True):
+            st.session_state.word_list = list(st.session_state.raw_word_list)
+            st.session_state.current_index = 0
+            st.session_state.mode_selected = True
+            st.rerun()
+
+    # 방식 2: 전체 섞기
+    with col2:
+        if st.button("2️⃣ 전체 섞기", use_container_width=True):
+            shuffled = list(st.session_state.raw_word_list)
+            random.shuffle(shuffled)
+            st.session_state.word_list = shuffled
+            st.session_state.current_index = 0
+            st.session_state.mode_selected = True
+            st.rerun()
+
+    # 방식 3: 구간 섞기
+    st.write("")
+    st.markdown("---")
+    st.write("**3️⃣ 특정 구간만 섞기 (예: 1번~7번)**")
+    
+    col_start, col_end = st.columns(2)
+    with col_start:
+        start_num = st.number_input("시작 번호", min_value=1, max_value=total_count, value=1)
+    with col_end:
+        end_num = st.number_input("끝 번호", min_value=1, max_value=total_count, value=min(7, total_count))
+
+    if st.button("🔀 구간 섞어서 시작하기", use_container_width=True):
+        if start_num > end_num:
+            st.error("시작 번호가 끝 번호보다 클 수 없습니다.")
+        else:
+            # 선택한 구간 추출 (1-based index를 0-based로 전환)
+            sub_list = list(st.session_state.raw_word_list[start_num - 1 : end_num])
+            random.shuffle(sub_list)
+            st.session_state.word_list = sub_list
+            st.session_state.current_index = 0
+            st.session_state.mode_selected = True
+            st.rerun()
+
+# 4. 단어 학습 및 음성 퀴즈 화면
+elif st.session_state.mode_selected:
     total = len(st.session_state.word_list)
     idx = st.session_state.current_index
     
@@ -83,7 +136,7 @@ if st.session_state.word_list:
     current_pair = st.session_state.word_list[idx]
     eng_word = current_pair.split(':')[0].strip() if ':' in current_pair else current_pair
     
-    # 메모리 버퍼를 통한 즉시 음성 재생 (디스크 I/O 제거로 속도 향상)
+    # 음성 재생
     fp = io.BytesIO()
     tts = gTTS(text=eng_word, lang='en', slow=True)
     tts.write_to_fp(fp)
@@ -107,7 +160,15 @@ if st.session_state.word_list:
             
     st.write("")
     st.markdown("---")
-    if st.button("📸 다른 사진으로 다시 찍기", use_container_width=True):
-        st.session_state.word_list = []
-        st.session_state.current_index = 0
-        st.rerun()
+    col_mode, col_reset = st.columns(2)
+    with col_mode:
+        if st.button("🔄 학습 방식 다시 선택", use_container_width=True):
+            st.session_state.mode_selected = False
+            st.rerun()
+    with col_reset:
+        if st.button("📸 다른 사진 찍기", use_container_width=True):
+            st.session_state.raw_word_list = []
+            st.session_state.word_list = []
+            st.session_state.current_index = 0
+            st.session_state.mode_selected = False
+            st.rerun()
