@@ -12,9 +12,8 @@ st.title("🔤 단어 암기 퀴즈 (무료)")
 # 1. Secrets에서 API Key 불러오기
 gemini_key = st.secrets.get("GEMINI_API_KEY", None)
 
-if not gemini_key or "여기에" in gemini_key:
+if not gemini_key:
     gemini_key = st.text_input("🔑 Google Gemini API Key를 입력해주세요", type="password")
-    st.info("💡 API Key가 없으시면 https://aistudio.google.com/app/apikey 에서 무료로 발급받으실 수 있습니다.")
 
 if "word_list" not in st.session_state:
     st.session_state.word_list = []
@@ -39,7 +38,7 @@ if not st.session_state.word_list:
 
     if target_photo:
         if not gemini_key:
-            st.error("❌ Gemini API Key가 입력되지 않았습니다. Secrets 설정이나 상단 입력창을 확인해 주세요.")
+            st.error("❌ Gemini API Key가 입력되지 않았습니다.")
         else:
             with st.spinner("⚡ 무료 AI가 사진속 단어를 읽고 있습니다..."):
                 try:
@@ -47,7 +46,9 @@ if not st.session_state.word_list:
                     
                     # Gemini API 설정
                     genai.configure(api_key=gemini_key.strip())
-                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    
+                    # 호환 가능한 모델명으로 설정
+                    model = genai.GenerativeModel('gemini-2.5-flash')
 
                     prompt_text = (
                         "이 사진 속 영어 단어와 한글 뜻을 추출해줘. "
