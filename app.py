@@ -17,12 +17,26 @@ if "word_list" not in st.session_state:
 if "current_index" not in st.session_state:
     st.session_state.current_index = 0
 
-# 단어장 사진 촬영/업로드
-uploaded_file = st.file_uploader("📸 단어장 사진 찍기 또는 갤러리 선택", type=["jpg", "png", "jpeg"])
+st.write("#### 📸 단어장 사진 준비하기")
+
+# 스마트폰용 한글 입력 선택 버튼
+tab1, tab2 = st.tabs(["📷 바로 사진 찍기", "📁 앨범에서 가져오기"])
+
+uploaded_file = None
+
+with tab1:
+    camera_file = st.camera_input("카메라로 단어장을 찍어주세요")
+    if camera_file:
+        uploaded_file = camera_file
+
+with tab2:
+    gallery_file = st.file_uploader("갤러리/파일에서 선택하세요", type=["jpg", "png", "jpeg"], label_visibility="collapsed")
+    if gallery_file:
+        uploaded_file = gallery_file
 
 # 단어 추출 진행
 if uploaded_file and api_key and not st.session_state.word_list:
-    if st.button("✨ 단어 공부 시작하기", type="primary"):
+    if st.button("✨ 단어 공부 시작하기", type="primary", use_container_width=True):
         client = OpenAI(api_key=api_key)
         
         bytes_data = uploaded_file.getvalue()
@@ -45,13 +59,13 @@ if uploaded_file and api_key and not st.session_state.word_list:
                 raw_text = response.choices[0].message.content
                 lines = [line.strip() for line in raw_text.split('\n') if line.strip()]
                 
-                # 순서 무작위 섞기 (중복 원천 차단)
+                # 순서 무작위 섞기
                 random.shuffle(lines)
                 st.session_state.word_list = lines
                 st.session_state.current_index = 0
                 st.rerun()
             except Exception as e:
-                st.error("사진을 읽는 중 문제가 생겼어요. 다시 시도해 주세요.")
+                st.error("사진을 읽는 중 문제가 발생했습니다. 다시 시도해 주세요.")
 
 # 단어 테스트 진행
 if st.session_state.word_list:
@@ -64,7 +78,7 @@ if st.session_state.word_list:
     current_pair = st.session_state.word_list[idx]
     eng_word = current_pair.split(':')[0].strip() if ':' in current_pair else current_pair
     
-    # 음성 생성 (천천히 읽기)
+    # 음성 생성 (천천히 발음)
     tts = gTTS(text=eng_word, lang='en', slow=True)
     tts.save("temp.mp3")
     
@@ -74,22 +88,22 @@ if st.session_state.word_list:
     
     st.divider()
     
-    # 정답 보기
+    # 정답 확인
     if st.checkbox("👁️ 스펠링 & 뜻 확인하기"):
         st.success(f"### {current_pair}")
         
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("⬅️ 이전 단어") and idx > 0:
+        if st.button("⬅️ 이전 단어", use_container_width=True) and idx > 0:
             st.session_state.current_index -= 1
             st.rerun()
     with col2:
-        if st.button("다음 단어 ➡️") and idx < total - 1:
+        if st.button("다음 단어 ➡️", use_container_width=True) and idx < total - 1:
             st.session_state.current_index += 1
             st.rerun()
             
     st.write("")
-    if st.button("🔄 다른 사진 찍기"):
+    if st.button("🔄 다른 사진으로 새로 하기", use_container_width=True):
         st.session_state.word_list = []
         st.session_state.current_index = 0
         st.rerun()
