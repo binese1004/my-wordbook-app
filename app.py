@@ -48,7 +48,7 @@ if not st.session_state.word_list:
                     genai.configure(api_key=gemini_key.strip())
                     
                     # 호환 가능한 모델명으로 설정
-                    model = genai.GenerativeModel('gemini-2.5-flash')
+                    model = genai.GenerativeModel('gemini-3.6-flash')
 
                     prompt_text = (
                         "이 사진 속 영어 단어와 한글 뜻을 추출해줘. "
