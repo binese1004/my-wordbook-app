@@ -83,7 +83,7 @@ if not st.session_state.raw_word_list:
                 except Exception as e:
                     err_msg = str(e)
                     if "429" in err_msg or "Quota exceeded" in err_msg:
-                        st.warning("⏳ 무료 사용량 제한에 도달했습니다. 약 30초~1시간 후 다시 시도해 주세요!")
+                        st.warning("⏳ 무료 사용량 제한에 도달했습니다. 약 30초~5시간 후 다시 시도해 주세요!")
                     else:
                         st.error(f"오류 상세 내용: {err_msg}")
 
