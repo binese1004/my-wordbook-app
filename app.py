@@ -43,7 +43,6 @@ def process_image(file_data):
 if not st.session_state.raw_word_list:
     st.write("### 사진을 선택해 주세요")
     
-    # 간결한 2개 버튼 배치
     col_cam, col_file = st.columns(2)
     
     with col_cam:
@@ -58,12 +57,11 @@ if not st.session_state.raw_word_list:
 
     target_photo = None
 
-    # 버튼 클릭에 따른 입력 창 표시
+    # 후면 카메라 우선 업로드 지원
     if st.session_state.upload_type == "camera":
-        st.write("👇 아래 촬영 버튼을 눌러 사진을 찍으세요")
-        target_photo = st.camera_input("카메라 촬영", label_visibility="collapsed")
+        target_photo = st.file_uploader("📸 후면 카메라로 찍기", type=["jpg", "png", "jpeg"], accept_multiple_files=False, key="back_camera")
     elif st.session_state.upload_type == "file":
-        target_photo = st.file_uploader("앨범에서 선택", type=["jpg", "png", "jpeg"], label_visibility="collapsed")
+        target_photo = st.file_uploader("📁 앨범에서 선택", type=["jpg", "png", "jpeg"], accept_multiple_files=False, key="album_file")
 
     if target_photo:
         if not gemini_key:
