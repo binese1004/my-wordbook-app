@@ -10,7 +10,7 @@ st.set_page_config(page_title="단어 암기 퀴즈", layout="centered")
 
 st.title("🔤 단어 암기 퀴즈")
 
-# API 키 가져오기 (Secrets 또는 입력창)
+# API 키 가져오기 (Secrets 또는 화면 입력)
 api_key = st.secrets.get("OPENAI_API_KEY", None)
 
 if not api_key:
@@ -22,7 +22,6 @@ if "current_index" not in st.session_state:
     st.session_state.current_index = 0
 
 def process_image(file_data):
-    # 이미지를 열고 EXIF 방향 자동 회전 보정
     image = Image.open(file_data)
     image = ImageOps.exif_transpose(image)
     if image.mode != 'RGB':
@@ -30,7 +29,6 @@ def process_image(file_data):
         
     buffered = io.BytesIO()
     image.save(buffered, format="JPEG", quality=90)
-    # 안전하게 base64 인코딩
     return base64.b64encode(buffered.getvalue()).decode('ascii')
 
 # 1. 단어 목록이 없을 때 업로드 화면
@@ -82,8 +80,8 @@ if not st.session_state.word_list:
                     else:
                         st.error("글자를 인식하지 못했습니다. 사진을 다시 찍어주세요.")
                 except Exception as e:
-                    # ASCII 에러 방지를 위해 예외 메시지를 문자열로 치환
-                    st.error("오류가 발생했습니다. OpenAI API Key 상태나 요금 잔액을 확인해 주세요.")
+                    # 에러 상세 내용을 영문으로 안전하게 출력
+                    st.error(f"OpenAI 오류 상세 내용: {repr(e)}")
 
 # 2. 단어 음성 학습 화면
 if st.session_state.word_list:
@@ -96,7 +94,6 @@ if st.session_state.word_list:
     current_pair = st.session_state.word_list[idx]
     eng_word = current_pair.split(':')[0].strip() if ':' in current_pair else current_pair
     
-    # 음성 파일 생성 및 재생
     tts = gTTS(text=eng_word, lang='en', slow=True)
     tts.save("temp.mp3")
     
