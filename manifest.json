@@ -7,7 +7,7 @@
   "theme_color": "#ffffff",
   "icons": [
     {
-      "src": "https://raw.githubusercontent.com/binese1004/my-wordbook-app/main/icon.png",
+      "src": "/icon.png",
       "sizes": "512x512",
       "type": "image/png"
     }
