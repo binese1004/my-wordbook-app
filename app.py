@@ -6,7 +6,7 @@ import io
 from PIL import Image, ImageOps
 
 st.set_page_config(page_title="최시언 영어 암기", layout="centered")
-
+st.markdown('<link rel="manifest" href="https://raw.githubusercontent.com/binese1004/my-wordbook-app/main/manifest.json">', unsafe_allow_html=True)
 st.markdown("""
     <h2 style='font-size: 26px; display: flex; align-items: center; gap: 8px;'>
         <span style='background-color: #FFD700; color: white; padding: 2px 6px; border-radius: 6px; font-weight: bold; font-size: 20px;'>abc</span>
