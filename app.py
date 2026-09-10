@@ -138,6 +138,7 @@ elif st.session_state.raw_word_list and not st.session_state.mode_selected:
 
 # 4. 단어 학습 및 음성 퀴즈 화면
 elif st.session_state.mode_selected:
+    import base64
     total = len(st.session_state.word_list)
     idx = st.session_state.current_index
     
@@ -147,24 +148,43 @@ elif st.session_state.mode_selected:
     current_pair = st.session_state.word_list[idx]
     eng_word = current_pair.split(':')[0].strip() if ':' in current_pair else current_pair
 
-    # 음성 생성 (base64 변환)
-    import base64
+    # 음성 생성 (base64)
     fp = io.BytesIO()
     tts = gTTS(text=eng_word, lang='en', slow=True)
     tts.write_to_fp(fp)
     fp.seek(0)
     audio_base64 = base64.b64encode(fp.read()).decode('utf-8')
     
-    # HTML5 오디오 태그 출력 (id="word_audio" 지정)
-    audio_html = f"""
-        <audio id="word_audio" autoplay>
-            <source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3">
-        </audio>
+    # HTML/JS로 오디오 플레이어와 다시 듣기 버튼을 하나로 통합
+    custom_audio_html = f"""
+        <div style="display: flex; flex-direction: column; gap: 10px; align-items: center; width: 100%;">
+            <audio id="audio_player" controls autoplay style="width: 100%;">
+                <source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3">
+            </audio>
+            <button onclick="playAudio()" style="
+                width: 100%;
+                padding: 10px;
+                background-color: #FF4B4B;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                font-size: 16px;
+                font-weight: bold;
+                cursor: pointer;
+            ">🔊 다시 듣기</button>
+        </div>
+        <script>
+            function playAudio() {{
+                var audio = document.getElementById('audio_player');
+                if (audio) {{
+                    audio.currentTime = 0;
+                    audio.play();
+                }}
+            }}
+        </script>
     """
-    st.components.v1.html(audio_html, height=0)
-    
-    # 화면용 기본 플레이어도 함께 표시
-    st.audio(fp, format="audio/mp3")
+    # HTML 컴포넌트로 출력
+    st.components.v1.html(custom_audio_html, height=110)
     
     st.write("")
     if st.checkbox("👁️ 정답(스펠링 & 뜻) 보기"):
@@ -172,26 +192,13 @@ elif st.session_state.mode_selected:
         
     st.write("")
     
-    # [이전 단어 / 다시 듣기 / 다음 단어] 3개 버튼 배치
-    col_prev, col_replay, col_next = st.columns(3)
+    # [이전 단어 / 다음 단어] 버튼 배치
+    col_prev, col_next = st.columns(2)
     
     with col_prev:
         if st.button("⬅️ 이전 단어", use_container_width=True) and idx > 0:
             st.session_state.current_index -= 1
             st.rerun()
-            
-    with col_replay:
-        # JS 실행 방식으로 재요청 없이 바로 재생
-        if st.button("🔊 다시 듣기", use_container_width=True):
-            st.components.v1.html("""
-                <script>
-                    var audio = window.parent.document.getElementById("word_audio");
-                    if (audio) {
-                        audio.currentTime = 0;
-                        audio.play();
-                    }
-                </script>
-            """, height=0)
             
     with col_next:
         if st.button("다음 단어 ➡️", use_container_width=True) and idx < total - 1:
