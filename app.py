@@ -147,23 +147,38 @@ elif st.session_state.mode_selected:
     current_pair = st.session_state.word_list[idx]
     eng_word = current_pair.split(':')[0].strip() if ':' in current_pair else current_pair
     
-    # 음성 재생
+    # 🔊 다시 듣기 상태 관리를 위한 Key 생성
+    if "audio_key" not in st.session_state:
+        st.session_state.audio_key = 0
+
+    # 음성 생성
     fp = io.BytesIO()
     tts = gTTS(text=eng_word, lang='en', slow=True)
     tts.write_to_fp(fp)
     fp.seek(0)
-    st.audio(fp, format="audio/mp3", autoplay=True)
+    
+    # key 매개변수를 추가하여 오디오 요소를 강제 갱신
+    st.audio(fp, format="audio/mp3", autoplay=True, key=f"audio_{idx}_{st.session_state.audio_key}")
     
     st.write("")
     if st.checkbox("👁️ 정답(스펠링 & 뜻) 보기"):
         st.success(f"### {current_pair}")
         
     st.write("")
-    col_prev, col_next = st.columns(2)
+    
+    # 3개 컬럼으로 분할하여 [이전 단어 / 다시 듣기 / 다음 단어] 배치
+    col_prev, col_replay, col_next = st.columns(3)
+    
     with col_prev:
         if st.button("⬅️ 이전 단어", use_container_width=True) and idx > 0:
             st.session_state.current_index -= 1
             st.rerun()
+            
+    with col_replay:
+        if st.button("🔊 다시 듣기", use_container_width=True):
+            st.session_state.audio_key += 1
+            st.rerun()
+            
     with col_next:
         if st.button("다음 단어 ➡️", use_container_width=True) and idx < total - 1:
             st.session_state.current_index += 1
