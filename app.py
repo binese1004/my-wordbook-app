@@ -147,14 +147,24 @@ elif st.session_state.mode_selected:
     current_pair = st.session_state.word_list[idx]
     eng_word = current_pair.split(':')[0].strip() if ':' in current_pair else current_pair
 
-    # 음성 생성
+    # 음성 생성 (base64 변환)
+    import base64
     fp = io.BytesIO()
     tts = gTTS(text=eng_word, lang='en', slow=True)
     tts.write_to_fp(fp)
     fp.seek(0)
+    audio_base64 = base64.b64encode(fp.read()).decode('utf-8')
     
-    # st.audio에서 key 제거
-    st.audio(fp, format="audio/mp3", autoplay=True)
+    # HTML5 오디오 태그 출력 (id="word_audio" 지정)
+    audio_html = f"""
+        <audio id="word_audio" autoplay>
+            <source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3">
+        </audio>
+    """
+    st.components.v1.html(audio_html, height=0)
+    
+    # 화면용 기본 플레이어도 함께 표시
+    st.audio(fp, format="audio/mp3")
     
     st.write("")
     if st.checkbox("👁️ 정답(스펠링 & 뜻) 보기"):
@@ -171,8 +181,17 @@ elif st.session_state.mode_selected:
             st.rerun()
             
     with col_replay:
+        # JS 실행 방식으로 재요청 없이 바로 재생
         if st.button("🔊 다시 듣기", use_container_width=True):
-            st.rerun()  # 화면을 새로고침하여 st.audio(..., autoplay=True) 재실행
+            st.components.v1.html("""
+                <script>
+                    var audio = window.parent.document.getElementById("word_audio");
+                    if (audio) {
+                        audio.currentTime = 0;
+                        audio.play();
+                    }
+                </script>
+            """, height=0)
             
     with col_next:
         if st.button("다음 단어 ➡️", use_container_width=True) and idx < total - 1:
